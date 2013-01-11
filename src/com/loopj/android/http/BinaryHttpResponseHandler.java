@@ -135,18 +135,37 @@ public class BinaryHttpResponseHandler extends AsyncHttpResponseHandler {
     // Methods which emulate android's Handler and Message methods
     protected void handleMessage(Message msg) {
         Object[] response;
-        switch(msg.what) {
-            case SUCCESS_MESSAGE:
-                response = (Object[])msg.obj;
-                handleSuccessMessage(((Integer) response[0]).intValue() , (byte[]) response[1]);
-                break;
-            case FAILURE_MESSAGE:
-                response = (Object[])msg.obj;
-                handleFailureMessage((Throwable)response[0], (byte[])response[1]);
-                break;
-            default:
-                super.handleMessage(msg);
-                break;
+        try {
+            switch(msg.what) {            
+            	case SUCCESS_MESSAGE:
+        			response = (Object[])msg.obj;
+        			if (response[1] instanceof byte[]) {
+        				handleSuccessMessage(((Integer) response[0]).intValue() , (byte[]) response[1]);
+        			} else if (response[1] instanceof String) {
+        				// Sometime response[1] here is a String, as in case of
+        	            // org.apache.http.conn.HttpHostConnectException: Connection to http://server4.manodrabuziai.lt refused
+        	            // "can't resolve host"
+        				handleFailureMessage((Throwable)response[0], (String)response[1]);
+        			} else {
+        				handleFailureMessage((Throwable)response[0], "");
+        			}
+        			break;
+        		case FAILURE_MESSAGE:
+        			response = (Object[])msg.obj;
+        			if (response[1] instanceof byte[]) {
+        				handleFailureMessage((Throwable)response[0], (byte[])response[1]);
+        			} else if (response[1] instanceof String) {
+        				handleFailureMessage((Throwable)response[0], (String)response[1]);
+        			} else {
+        				handleFailureMessage((Throwable)response[0], "");
+        			}
+        			break;
+        		default:
+        			super.handleMessage(msg);
+        			break;
+            }
+        } catch(Exception e) {
+        	handleFailureMessage(e, e.getMessage());
         }
     }
 

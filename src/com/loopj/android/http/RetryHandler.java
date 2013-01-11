@@ -88,7 +88,17 @@ class RetryHandler implements HttpRequestRetryHandler {
             // resend all idempotent requests
             HttpUriRequest currentReq = (HttpUriRequest) context.getAttribute( ExecutionContext.HTTP_REQUEST );
             String requestType = currentReq.getMethod();
-            retry = !requestType.equals("POST");
+            
+            // TODO: All out requests are POST. We should retry those that start with "get".
+            // Or maybe expose allowRetry() method or parameter.
+            // HACK!!! Allowing retries for MD API requests that start with "get":
+            // this indicates we're receiving data (vs changing) and request is idempotent
+            // thus safe to retry 
+            if(requestType.equals("POST") && currentReq.getURI().toString().indexOf("/1.2/get") > -1) {
+            	retry = true;
+            } else {
+            	retry = !requestType.equals("POST");
+            }
         }
 
         if(retry) {

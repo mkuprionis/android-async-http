@@ -86,7 +86,7 @@ public abstract class SyncHttpClient extends AsyncHttpClient {
 	}
 
 	public String get(String url) {
-		this.get(url, null, responseHandler);
+		this.get(url, (RequestParams) null, responseHandler);
 		return result;
 	}
 
@@ -116,7 +116,7 @@ public abstract class SyncHttpClient extends AsyncHttpClient {
 	}
 
 	public String delete(String url) {
-		this.delete(url, null, responseHandler);
+		this.delete(url, (RequestParams) null, responseHandler);
 		return result;
 	}
 

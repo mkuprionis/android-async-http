@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.zip.GZIPInputStream;
 
@@ -104,7 +103,7 @@ public class AsyncHttpClient {
     private final DefaultHttpClient httpClient;
     private final HttpContext httpContext;
     private ThreadPoolExecutor threadPool;
-    private final Map<Object, List<WeakReference<Future<?>>>> requestMap;
+    private final Map<Object, List<WeakReference<AsyncHttpRequest>>> requestMap;
     private final Map<String, String> clientHeaderMap;
 
 
@@ -176,7 +175,7 @@ public class AsyncHttpClient {
 
         threadPool = (ThreadPoolExecutor)Executors.newCachedThreadPool();
 
-        requestMap = new WeakHashMap<Object, List<WeakReference<Future<?>>>>();
+        requestMap = new WeakHashMap<Object, List<WeakReference<AsyncHttpRequest>>>();
         clientHeaderMap = new HashMap<String, String>();
     }
 
@@ -291,21 +290,21 @@ public class AsyncHttpClient {
 	 * or view they try to modify still exist on request completion.
      * 
      * <p>
-     * <b>Note:</b> This will only affect requests which were created with a non-null
-     * associated object. This method is intended to be used in the onDestroy
-     * method of your android activities to destroy all requests which are no
-     * longer required.
+     * <b>Note:</b> This won't cancel requests in-progress, for instance huge
+     * file download or upload. Requests that are't started yet will be removed
+     * from the queue, and if request was canceled while it was in progress,
+     * callback won't be triggered. 
      *
      * @param initiator an object associated with the request; typically initiating Fragment or Activity
-     * @param mayInterruptIfRunning specifies if active requests should be cancelled along with pending requests.
      */
-    public void cancelRequests(Object initiator, boolean mayInterruptIfRunning) {
-        List<WeakReference<Future<?>>> requestList = requestMap.get(initiator);
+    public void cancelRequests(Object initiator) {
+        List<WeakReference<AsyncHttpRequest>> requestList = requestMap.get(initiator);
         if(requestList != null) {
-            for(WeakReference<Future<?>> requestRef : requestList) {
-                Future<?> request = requestRef.get();
+            for(WeakReference<AsyncHttpRequest> requestRef : requestList) {
+            	AsyncHttpRequest request = requestRef.get();
                 if(request != null) {
-                    request.cancel(mayInterruptIfRunning);
+                    request.cancel();
+                    threadPool.remove(request);
                 }
             }
         }
@@ -573,17 +572,18 @@ public class AsyncHttpClient {
             uriRequest.addHeader("Content-Type", contentType);
         }
 
-        Future<?> request = threadPool.submit(new AsyncHttpRequest(client, httpContext, uriRequest, responseHandler));
+        AsyncHttpRequest request = new AsyncHttpRequest(client, httpContext, uriRequest, responseHandler); 
+        threadPool.execute(request);
 
         if(initiator != null) {
             // Add request to request map
-            List<WeakReference<Future<?>>> requestList = requestMap.get(initiator);
+            List<WeakReference<AsyncHttpRequest>> requestList = requestMap.get(initiator);
             if(requestList == null) {
-                requestList = new LinkedList<WeakReference<Future<?>>>();
+                requestList = new LinkedList<WeakReference<AsyncHttpRequest>>();
                 requestMap.put(initiator, requestList);
             }
 
-            requestList.add(new WeakReference<Future<?>>(request));
+            requestList.add(new WeakReference<AsyncHttpRequest>(request));
 
             // TODO: Remove dead weakrefs from requestLists?
         }

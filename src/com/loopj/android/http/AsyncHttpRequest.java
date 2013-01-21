@@ -34,37 +34,50 @@ class AsyncHttpRequest implements Runnable {
     private final AsyncHttpResponseHandler responseHandler;
     private int executionCount;
 
+    private volatile boolean isCanceled;
+    
     public AsyncHttpRequest(AbstractHttpClient client, HttpContext context, HttpUriRequest request, AsyncHttpResponseHandler responseHandler) {
         this.client = client;
         this.context = context;
         this.request = request;
         this.responseHandler = responseHandler;
+        this.isCanceled = false;
     }
 
     public void run() {
-        if (responseHandler != null) {
+        if (responseHandler != null && !isCanceled) {
             responseHandler.sendStartMessage();
         }
 
         try {
             makeRequestWithRetries();
         } catch (IOException e) {
-            if (responseHandler != null) {
+            if (responseHandler != null && !isCanceled) {
                 responseHandler.sendFailureMessage(0, null, e);
             }
         }
-        if (responseHandler != null) {
+        
+        if (responseHandler != null && !isCanceled) {
             responseHandler.sendFinishMessage();
         }
     }
 
+    public void cancel() {
+    	isCanceled = true;
+    	
+    	// If we do this, request abortion happens on calling thread -
+    	// typically UI thread. 
+//    	try {
+//    		request.abort();
+//    	} catch(UnsupportedOperationException e) {
+//    	}
+    }
+    
     private void makeRequest() throws IOException {
-        if(!Thread.currentThread().isInterrupted()) {
+        if(!isCanceled) {
             HttpResponse response = client.execute(request, context);
-            if(!Thread.currentThread().isInterrupted()) {
-                if(responseHandler != null) {
-                    responseHandler.sendResponseMessage(response);
-                }
+            if(responseHandler != null && !isCanceled) {
+                responseHandler.sendResponseMessage(response);
             }
         }
     }

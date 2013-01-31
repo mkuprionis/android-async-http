@@ -140,7 +140,14 @@ public class BinaryHttpResponseHandler extends AsyncHttpResponseHandler {
             	case SUCCESS_MESSAGE:
         			response = (Object[])msg.obj;
         			if (response[1] instanceof byte[]) {
-        				handleSuccessMessage(((Integer) response[0]).intValue() , (byte[]) response[1]);
+        				try {
+        					handleSuccessMessage(((Integer) response[0]).intValue() , (byte[]) response[1]);
+        				} catch(ClassCastException e) {
+        					// Bit of hack, hopefully will work out
+        					// Having lots of these exceptions, that's why:
+        					// https://www.bugsense.com/dashboard/project/157520b8#error/93116009
+        					handleSuccessMessage(200 , (byte[]) response[1]);
+        				}
         			} else if (response[1] instanceof String) {
         				// Sometime response[1] here is a String, as in case of
         	            // org.apache.http.conn.HttpHostConnectException: Connection to http://server4.manodrabuziai.lt refused

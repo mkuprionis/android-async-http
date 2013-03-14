@@ -300,11 +300,10 @@ public class AsyncHttpClient {
     public void cancelRequests(Object initiator) {
         List<WeakReference<AsyncHttpRequest>> requestList = requestMap.get(initiator);
         if(requestList != null) {
-            for(WeakReference<AsyncHttpRequest> requestRef : requestList) {
-            	AsyncHttpRequest request = requestRef.get();
-                if(request != null) {
-                    request.cancel();
-                    threadPool.remove(request);
+        	for(int i=0; i<requestList.size(); i++) {
+                if(requestList.get(i).get() != null) {
+                	requestList.get(i).get().cancel();
+                    threadPool.remove(requestList.get(i).get());
                 }
             }
         }

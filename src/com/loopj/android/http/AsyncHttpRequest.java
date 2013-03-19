@@ -27,6 +27,8 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.AbstractHttpClient;
 import org.apache.http.protocol.HttpContext;
 
+import android.util.Log;
+
 class AsyncHttpRequest implements Runnable {
     private final AbstractHttpClient client;
     private final HttpContext context;
@@ -53,7 +55,9 @@ class AsyncHttpRequest implements Runnable {
         if (responseHandler != null && !isCanceled) {
             responseHandler.sendStartMessage();
         }
-
+        
+        long startTime = System.currentTimeMillis();
+        
         try {
             makeRequestWithRetries();
         } catch (IOException e) {
@@ -62,6 +66,12 @@ class AsyncHttpRequest implements Runnable {
             }
         }
         
+    	Log.d("HTTP", String.format(
+    		"Completed in %dms: %s",
+    		System.currentTimeMillis() - startTime, 
+    		request.getRequestLine()
+    	));
+    	
         if (responseHandler != null && !isCanceled) {
             responseHandler.sendFinishMessage();
         }
@@ -129,6 +139,7 @@ class AsyncHttpRequest implements Runnable {
                     retry = retryHandler.retryRequest(cause, ++executionCount, context);
                 }
                 if(retry && (responseHandler != null)) {
+                  Log.d("HTTP", String.format("Retrying (%d) %s \n{%s}", executionCount, request.getRequestLine(), request.getParams().toString()));
                   responseHandler.sendRetryMessage();
                 }
             }

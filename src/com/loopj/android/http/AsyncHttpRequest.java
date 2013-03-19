@@ -30,7 +30,12 @@ import org.apache.http.protocol.HttpContext;
 class AsyncHttpRequest implements Runnable {
     private final AbstractHttpClient client;
     private final HttpContext context;
-    private final HttpUriRequest request;
+    
+    // Volatile, because it can be accessed from another
+    // thread to call request.abort(). Not sure what's better 
+    // and what are the implications when request is final or
+    // or volatile.
+    private volatile HttpUriRequest request;
     private final AsyncHttpResponseHandler responseHandler;
     private int executionCount;
 
@@ -65,12 +70,25 @@ class AsyncHttpRequest implements Runnable {
     public void cancel() {
     	isCanceled = true;
     	
-    	// If we do this, request abortion happens on calling thread -
-    	// typically UI thread. 
-//    	try {
-//    		request.abort();
-//    	} catch(UnsupportedOperationException e) {
-//    	}
+    	// `request.abort()` has to be called NOT on UI thread,
+    	// because if call is on UI thread, Android strict mode
+    	// will forbid operation with Fatal Error "Network not allowed
+    	// on UI thread" - because request abortion is a network operation.
+    	//
+    	// However cancel() method will usually be called on UI thread,
+    	// thus we need to make request.abort() call on another tread.
+    	// 
+    	// Creating a new thread just to call abort() method is kinda 
+    	// heavy handed solution, something more elegant would be nice
+		new Thread(new Runnable() {
+			@Override public void run() {
+				try {
+					request.abort();
+				} catch(UnsupportedOperationException e) {
+		    	}
+            }
+		}).start();
+    	
     }
     
     private void makeRequest() throws IOException {

@@ -115,11 +115,15 @@ public class TextHttpResponseHandler extends AsyncHttpResponseHandler {
 
     @Override
     protected void handleFailureMessage(int statusCode, byte[] responseBody, Throwable error) {
-        try {
-            onFailure(statusCode, new String(responseBody, _encoding), error);
-        } catch (UnsupportedEncodingException e) {
-            onFailure(0, (String) null, e);
-        }
+    	if(responseBody != null) {
+            try {
+                onFailure(statusCode, new String(responseBody, _encoding), error);
+            } catch (UnsupportedEncodingException e) {
+                onFailure(0, (String) null, e);
+            }
+    	} else {
+    		onFailure(0, (String) null, error);
+    	}
     }
     
 }

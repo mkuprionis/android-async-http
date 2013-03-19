@@ -32,7 +32,6 @@ import java.util.HashSet;
 import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.http.NoHttpResponseException;
-import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.protocol.ExecutionContext;
 import org.apache.http.protocol.HttpContext;
@@ -87,20 +86,13 @@ class RetryHandler implements HttpRequestRetryHandler {
 
         if(retry) {
             // resend all idempotent requests
-            HttpUriRequest currentReq = (HttpUriRequest) context.getAttribute( ExecutionContext.HTTP_REQUEST );
-            String requestType = currentReq.getMethod();
+            // (intentionally commented out)
+            // HttpUriRequest currentReq = (HttpUriRequest) context.getAttribute( ExecutionContext.HTTP_REQUEST );
+            // String requestType = currentReq.getMethod();
+            // retry = !requestType.equals("POST");
             
-            // TODO: All our requests are POST. We should retry those that start with "get".
-            // Or maybe expose allowRetry() method or parameter.
-            //
-            // HACK!!! Allowing retries for MD API requests that start with "get":
-            // this indicates we're receiving data (vs changing) and request is idempotent
-            // thus safe to retry 
-            if(requestType.equals("POST") && currentReq.getURI().toString().indexOf("/1.2/get") > -1) {
-              retry = true;
-            } else {
-            	retry = !requestType.equals("POST");
-            }
+            // This is unsafe. We shouldn't try to resend requests that may modify data.
+            // On the other hand nothing tooo bad should happen.
         }
 
         if (retry) {

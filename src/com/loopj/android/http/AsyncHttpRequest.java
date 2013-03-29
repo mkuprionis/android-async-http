@@ -82,6 +82,10 @@ class AsyncHttpRequest implements Runnable {
     	if (responseHandler != null && !isCanceled) {
             responseHandler.sendFinishMessage();
         }
+    	
+    	// When all is done, explicitly close request
+    	// so that connections are released.
+    	request.abort();
     }
 
     public void cancel() {

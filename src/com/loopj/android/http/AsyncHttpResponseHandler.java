@@ -27,6 +27,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpResponseException;
 import org.apache.http.util.ByteArrayBuffer;
+import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -339,49 +340,68 @@ public class AsyncHttpResponseHandler {
     byte[] getResponseData(HttpEntity entity) throws IOException {
         byte[] responseBody = null;
         if (entity != null) {
-            InputStream instream = entity.getContent();
-            if (instream != null) {
-                long contentLength = entity.getContentLength();
-                if (contentLength > Integer.MAX_VALUE) {
-                	entity.consumeContent();
-                    throw new IllegalArgumentException("HTTP entity too large to be buffered in memory");
-                }
-                if (contentLength < 0) {
-                    contentLength = BUFFER_SIZE;
-                }
-                try{
-                    ByteArrayBuffer buffer = new ByteArrayBuffer((int) contentLength);
-                    try {
-                        byte[] tmp = new byte[BUFFER_SIZE];
-                        int l, count = 0;
-                        // do not send messages if request has been cancelled
-                        while ((l = instream.read(tmp)) != -1 && !Thread.currentThread().isInterrupted()) {
-                            count += l;
-                            buffer.append(tmp, 0, l);
-                            sendProgressMessage(count, (int) contentLength);
-                        }
-                    } finally {
-                        instream.close();
+        	long contentLength = entity.getContentLength();
+            if (contentLength > Integer.MAX_VALUE) {
+            	entity.consumeContent();
+                throw new IllegalArgumentException("HTTP entity too large to be buffered in memory");
+            }
+            
+            // If server didn't report content length (via Content-Length header),
+            // don't send progress and read whole response at once.
+            // 
+            // On the other hand, if content length is known, read it chunk by chunk
+            // reporting progress on the way.
+            if(contentLength < 0) {
+            	if(debug) Log.d(TAG, String.format("Consuming response - unknown size for %s", requestLine));
+            	
+            	responseBody = EntityUtils.toByteArray(entity);
+            } else {
+                InputStream instream = entity.getContent();
+                if (instream != null) {
+                	
+                	if(debug) Log.d(TAG, String.format("Consuming response - size is %,d bytes for %s", contentLength, requestLine));
+                	
+                    try{
+                        ByteArrayBuffer buffer = new ByteArrayBuffer((int) contentLength);
                         
-                        // We need to fully consume (or rather finalize reading of)
-                        // entity so that connection can be given back to
-                        // connection pool.
-                        // 
-                        // Otherwise, connections are help up, and subsequent requests
-                        // fail with `ConnectionPoolTimeoutException`.
-                        //
-                        // Following answer suggested this approach:
-                        // http://stackoverflow.com/a/4621737/74174
+                        try {
+                            byte[] tmp = new byte[BUFFER_SIZE];
+                            int l, count = 0;
+                            // do not send messages if request has been cancelled
+                            while ((l = instream.read(tmp)) != -1 && !Thread.currentThread().isInterrupted()) {
+                                count += l;
+                                buffer.append(tmp, 0, l);
+                                sendProgressMessage(count, (int) contentLength);
+                            }
+                        } finally {
+                            instream.close();
+                        }
+                        responseBody = buffer.buffer();
+                    } catch( OutOfMemoryError e ) {
+                        System.gc();
                         entity.consumeContent();
+                        throw new IOException("File too large to fit into available memory");
                     }
-                    responseBody = buffer.buffer();
-                } catch( OutOfMemoryError e ) {
-                    System.gc();
-                    entity.consumeContent();
-                    throw new IOException("File too large to fit into available memory");
                 }
             }
+            
+            // We need to fully consume (or rather finalise reading of)
+            // entity so that connection can be given back to
+            // connection pool.
+            // 
+            // Otherwise, connections are help up, and subsequent requests
+            // fail with `ConnectionPoolTimeoutException`.
+            //
+            // Following answer suggested this approach:
+            // http://stackoverflow.com/a/4621737/74174
+            entity.consumeContent();
+            
+            if(debug) Log.d(TAG, String.format("Consumed response, total %,d bytes for %s", responseBody.length, requestLine));
+            
+        } else {
+        	if(debug) Log.d(TAG, String.format("Consuming response but entity is `null` for %s", requestLine));
         }
+        
         return (responseBody);
     }
     

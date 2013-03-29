@@ -268,7 +268,7 @@ public class AsyncHttpResponseHandler {
     }
 
     protected void handleFailureMessage(int statusCode, byte[] responseBody, Throwable error) {
-    	if(debug) Log.d(TAG, String.format("Handling failure message (HTTP %d; %,d bytes), caused by %s, for %s", statusCode, responseBody.length, error.getClass().getSimpleName(), requestLine));
+    	if(debug) Log.d(TAG, String.format("Handling failure message (HTTP %d), caused by %s, for %s", statusCode, error.getClass().getSimpleName(), requestLine));
         onFailure(statusCode, responseBody, error);
     }
 

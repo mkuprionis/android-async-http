@@ -273,6 +273,7 @@ public class AsyncHttpResponseHandler {
             if (instream != null) {
                 long contentLength = entity.getContentLength();
                 if (contentLength > Integer.MAX_VALUE) {
+                	entity.consumeContent();
                     throw new IllegalArgumentException("HTTP entity too large to be buffered in memory");
                 }
                 if (contentLength < 0) {
@@ -291,10 +292,22 @@ public class AsyncHttpResponseHandler {
                         }
                     } finally {
                         instream.close();
+                        
+                        // We need to fully consume (or rather finalize reading of)
+                        // entity so that connection can be given back to
+                        // connection pool.
+                        // 
+                        // Otherwise, connections are help up, and subsequent requests
+                        // fail with `ConnectionPoolTimeoutException`.
+                        //
+                        // Following answer suggested this approach:
+                        // http://stackoverflow.com/a/4621737/74174
+                        entity.consumeContent();
                     }
                     responseBody = buffer.buffer();
                 } catch( OutOfMemoryError e ) {
                     System.gc();
+                    entity.consumeContent();
                     throw new IOException("File too large to fit into available memory");
                 }
             }

@@ -32,6 +32,7 @@ import org.apache.http.util.ByteArrayBuffer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
+import android.util.Log;
 
 /**
  * Used to intercept and handle the responses from requests made using 
@@ -69,6 +70,8 @@ import java.lang.ref.WeakReference;
  * </pre>
  */
 public class AsyncHttpResponseHandler {
+	private static final String TAG = "HTTP/AsyncHandler";
+	
     protected static final int SUCCESS_MESSAGE = 0;
     protected static final int FAILURE_MESSAGE = 1;
     protected static final int START_MESSAGE = 2;
@@ -82,19 +85,41 @@ public class AsyncHttpResponseHandler {
 
     // avoid leaks by using a non-anonymous handler class
     // with a weak reference
+    // Whether we're in development environment
+    protected boolean debug = false;
+    
+    // Used when debugging for more informative logs
+    protected String requestLine;
+    
     static class ResponderHandler extends Handler {
-        private final WeakReference<AsyncHttpResponseHandler> mResponder; 
-
+        private final WeakReference<AsyncHttpResponseHandler> mResponder;
+    	
+        private boolean mDebug;
+        private String mRequestLine;
+        
         ResponderHandler(AsyncHttpResponseHandler service) {
             mResponder = new WeakReference<AsyncHttpResponseHandler>(service);
+            mDebug = false;
         }
+        
         @Override
         public void handleMessage(Message msg)
         {
-            AsyncHttpResponseHandler service = mResponder.get();
-             if (service != null) {
-                  service.handleMessage(msg);
-             }
+        	AsyncHttpResponseHandler service = mResponder.get();
+            if (service != null) {
+            	service.handleMessage(msg);
+            } else {
+            	if(mDebug) Log.d(TAG, String.format("Would handle a message in a handler, we've lost WeakReference; %s", mRequestLine));
+            }
+        }
+        
+        void setDebug(boolean isDevelopmentEnv) {
+        	mDebug = isDevelopmentEnv;
+        	if(mDebug) mRequestLine = "";
+        }
+        
+        void setRequestLine(String requestLine) {
+        	mRequestLine = requestLine; 
         }
     }
     
@@ -109,6 +134,31 @@ public class AsyncHttpResponseHandler {
         }
     }
 
+    /**
+     * Setting this to `true` enables verbose logging.
+     * Also be sure to also use `setRequestLine(String)`
+     * afterwards for more informative logs.
+     * 
+     * @param isDevelopmentEnv
+     */
+    void setDebug(boolean isDevelopmentEnv) {
+    	this.debug = isDevelopmentEnv;
+    	
+    	if(debug) {
+    		requestLine = "";
+    		
+    		if(handler != null) {
+    			((ResponderHandler)handler).setDebug(isDevelopmentEnv);
+    		}
+    	}
+    }
+    
+    void setRequestLine(String requestLine) {
+    	this.requestLine = requestLine;
+    	if(handler != null) {
+			((ResponderHandler)handler).setRequestLine(requestLine);
+		}
+    }
 
     //
     // Callbacks to be overridden, typically anonymously
@@ -170,39 +220,46 @@ public class AsyncHttpResponseHandler {
     //
 
     protected void sendSuccessMessage(int statusCode, byte[] responseBody) {
-    	Log.d("HTTP", String.format("HTTP %d: %,d bytes", statusCode, responseBody.length));
+    	if(debug) Log.d(TAG, String.format("Sending success message (HTTP %d, %,d bytes) for %s", statusCode, responseBody.length, requestLine));
         sendMessage(obtainMessage(SUCCESS_MESSAGE, new Object[] { Integer.valueOf(statusCode), responseBody }));
     }
 
     protected void sendFailureMessage(int statusCode, byte[] responseBody, Throwable error) {
+    	if(debug) Log.d(TAG, String.format("Sending failure message %d caused by %s for %s", statusCode, error.getClass().getSimpleName(), requestLine));
         sendMessage(obtainMessage(FAILURE_MESSAGE, new Object[] { Integer.valueOf(statusCode), responseBody, error }));
     }
 
     protected void sendStartMessage() {
+    	if(debug) Log.d(TAG, String.format("Sending start message %s", requestLine));
         sendMessage(obtainMessage(START_MESSAGE, null));
     }
 
     protected void sendFinishMessage() {
+    	if(debug) Log.d(TAG, String.format("Sending finish message  %s", requestLine));
         sendMessage(obtainMessage(FINISH_MESSAGE, null));
     }
 
     protected void sendProgressMessage(int current, int total) {
+    	// No debug logging here because this generates waaay too much logs
         sendMessage(obtainMessage(PROGRESS_MESSAGE, new Object[] { current, total }));
     }
 
     protected void sendRetryMessage() {
-      sendMessage(obtainMessage(RETRY_MESSAGE, null));
-  }
+    	if(debug) Log.d(TAG, String.format("Sending retry message  %s", requestLine));
+    	sendMessage(obtainMessage(RETRY_MESSAGE, null));
+    }
     
     //
     // Pre-processing of messages (in original calling thread, typically the UI thread)
     //
 
     protected void handleSuccessMessage(int statusCode, byte[] responseBody) {
+    	if(debug) Log.d(TAG, String.format("Handling success message (HTTP %d; %,d bytes) for %s", statusCode, responseBody.length, requestLine));
         onSuccess(statusCode, responseBody);
     }
 
     protected void handleFailureMessage(int statusCode, byte[] responseBody, Throwable error) {
+    	if(debug) Log.d(TAG, String.format("Handling failure message (HTTP %d; %,d bytes), caused by %s, for %s", statusCode, responseBody.length, error.getClass().getSimpleName(), requestLine));
         onFailure(statusCode, responseBody, error);
     }
 
@@ -211,8 +268,9 @@ public class AsyncHttpResponseHandler {
     }
 
     protected void handleRetryMessage() {
-      onRetry();
-  }
+    	if(debug) Log.d(TAG, String.format("Handling retry message for %s", requestLine));
+    	onRetry();
+    }
     
     // Methods which emulate android's Handler and Message methods
     protected void handleMessage(Message msg) {
@@ -245,12 +303,16 @@ public class AsyncHttpResponseHandler {
 
     protected void sendMessage(Message msg) {
         // do not send messages if request has been cancelled
-        if (!Thread.currentThread().isInterrupted()) {
+        if (!Thread.currentThread().isInterrupted() && !isCanceled) {
             if (handler != null) {
+            	if(debug) Log.d(TAG, String.format("Sending message to handler for %s", requestLine));
                 handler.sendMessage(msg);
             } else {
+            	if(debug) Log.d(TAG, String.format("Sending message without handler for %s", requestLine));
                 handleMessage(msg);
             }
+        } else {
+        	if(debug) Log.d(TAG, String.format("Not sending message %s because thread was interrupted or request was canceled (%b) %s", msg.toString(), isCanceled, requestLine));
         }
     }
 
@@ -318,15 +380,20 @@ public class AsyncHttpResponseHandler {
     // Interface to AsyncHttpRequest
     void sendResponseMessage(HttpResponse response) throws IOException {
         // do not process if request has been cancelled
-        if (!Thread.currentThread().isInterrupted()) {
+        if (!Thread.currentThread().isInterrupted() && !isCanceled) {
             StatusLine status = response.getStatusLine();
             byte[] responseBody = null;
             responseBody = getResponseData(response.getEntity());
+            
+            if(debug) Log.d(TAG, String.format("Sending response message of total %,d bytes for %s", responseBody.length, requestLine));
+            
             if (status.getStatusCode() >= 300) {
                 sendFailureMessage(status.getStatusCode(), responseBody, new HttpResponseException(status.getStatusCode(), status.getReasonPhrase()));
             } else {
                 sendSuccessMessage(status.getStatusCode(), responseBody);
             }
+        } else {
+        	if(debug) Log.d(TAG, String.format("NOT sending response message as thread was interrunpted or request canceled (%b) for %s", isCanceled, requestLine));
         }
     }
 }

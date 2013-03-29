@@ -106,7 +106,8 @@ public class AsyncHttpClient {
     private final Map<Object, List<WeakReference<AsyncHttpRequest>>> requestMap;
     private final Map<String, String> clientHeaderMap;
 
-
+    private boolean debug = false;
+    
     /**
      * Creates a new AsyncHttpClient.
      */
@@ -310,6 +311,13 @@ public class AsyncHttpClient {
         requestMap.remove(initiator);
     }
 
+    /**
+     * Setting to `true` will turn on verbose logging
+     * @param isDevelopmentEnv
+     */
+    public void setDebug(boolean isDevelopmentEnv) {
+    	this.debug = isDevelopmentEnv;
+    }
 
     //
     // HTTP GET Requests
@@ -571,7 +579,8 @@ public class AsyncHttpClient {
             uriRequest.addHeader("Content-Type", contentType);
         }
 
-        AsyncHttpRequest request = new AsyncHttpRequest(client, httpContext, uriRequest, responseHandler); 
+        AsyncHttpRequest request = new AsyncHttpRequest(client, httpContext, uriRequest, responseHandler);
+        request.setDebug(debug);
         threadPool.execute(request);
 
         if(initiator != null) {

@@ -30,7 +30,9 @@ import org.apache.http.protocol.HttpContext;
 import android.util.Log;
 
 class AsyncHttpRequest implements Runnable {
-    private final AbstractHttpClient client;
+	private static final String TAG = "HTTP/Request";
+	
+	private final AbstractHttpClient client;
     private final HttpContext context;
     
     // Volatile, because it can be accessed from another
@@ -43,6 +45,9 @@ class AsyncHttpRequest implements Runnable {
 
     private volatile boolean isCanceled;
     
+    // Whether we're in development environment
+    private boolean debug = false;
+    
     public AsyncHttpRequest(AbstractHttpClient client, HttpContext context, HttpUriRequest request, AsyncHttpResponseHandler responseHandler) {
         this.client = client;
         this.context = context;
@@ -53,10 +58,16 @@ class AsyncHttpRequest implements Runnable {
 
     public void run() {
         if (responseHandler != null && !isCanceled) {
+        	responseHandler.setDebug(debug);
+        	if(debug) {
+        		responseHandler.setRequestLine(request.getRequestLine().toString());
+        	}
+        	
             responseHandler.sendStartMessage();
         }
         
-        long startTime = System.currentTimeMillis();
+        long startTime = 0;
+        if(debug) startTime = System.currentTimeMillis();
         
         try {
             makeRequestWithRetries();
@@ -66,13 +77,9 @@ class AsyncHttpRequest implements Runnable {
             }
         }
         
-    	Log.d("HTTP", String.format(
-    		"Completed in %dms: %s",
-    		System.currentTimeMillis() - startTime, 
-    		request.getRequestLine()
-    	));
+        if(debug) Log.d(TAG, String.format("Completed in %dms: %s\n", System.currentTimeMillis() - startTime, request.getRequestLine()));
     	
-        if (responseHandler != null && !isCanceled) {
+    	if (responseHandler != null && !isCanceled) {
             responseHandler.sendFinishMessage();
         }
     }
@@ -101,11 +108,25 @@ class AsyncHttpRequest implements Runnable {
     	
     }
     
+    /**
+     * Setting to `true` will turn on verbose logging
+     * @param isDevelopmentEnv
+     */
+    public void setDebug(boolean isDevelopmentEnv) {
+    	this.debug = isDevelopmentEnv;
+    }
+    
     private void makeRequest() throws IOException {
         if(!isCanceled) {
             HttpResponse response = client.execute(request, context);
+            
+            if(debug) Log.d(TAG, String.format("Finished executing %s", request.getRequestLine()));
+            
             if(responseHandler != null && !isCanceled) {
+            	if(debug) Log.d(TAG, String.format("About to send response message for %s", request.getRequestLine()));
                 responseHandler.sendResponseMessage(response);
+            } else {
+            	if(debug) Log.d(TAG, String.format("Not sending response message {handler=%s; isCanceled=%b} for %s", (responseHandler != null ? responseHandler.toString() : "null"), isCanceled, request.getRequestLine()));
             }
         }
     }
@@ -138,9 +159,12 @@ class AsyncHttpRequest implements Runnable {
                     cause = new IOException("NPE in HttpClient: " + e.getMessage());
                     retry = retryHandler.retryRequest(cause, ++executionCount, context);
                 }
+                
+                if(debug) Log.d(TAG, String.format("Request failed because of %s: %s", cause.getClass().getSimpleName(), request.getRequestLine()));
+                
                 if(retry && (responseHandler != null)) {
-                  Log.d("HTTP", String.format("Retrying (%d) %s \n{%s}", executionCount, request.getRequestLine(), request.getParams().toString()));
-                  responseHandler.sendRetryMessage();
+                	if(debug) Log.d(TAG, String.format("Retrying (%d) %s", executionCount, request.getRequestLine()));
+                	responseHandler.sendRetryMessage();
                 }
             }
         } catch (Exception e) {

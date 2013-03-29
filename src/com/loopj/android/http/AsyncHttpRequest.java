@@ -87,6 +87,10 @@ class AsyncHttpRequest implements Runnable {
     public void cancel() {
     	isCanceled = true;
     	
+    	if(responseHandler != null) {
+    		responseHandler.cancel();
+    	}
+    	
     	// `request.abort()` has to be called NOT on UI thread,
     	// because if call is on UI thread, Android strict mode
     	// will forbid operation with Fatal Error "Network not allowed

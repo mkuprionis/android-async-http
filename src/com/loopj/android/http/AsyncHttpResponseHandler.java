@@ -85,6 +85,8 @@ public class AsyncHttpResponseHandler {
 
     // avoid leaks by using a non-anonymous handler class
     // with a weak reference
+    private boolean isCanceled;
+    
     // Whether we're in development environment
     protected boolean debug = false;
     
@@ -160,6 +162,10 @@ public class AsyncHttpResponseHandler {
 		}
     }
 
+    public void cancel() {
+    	isCanceled = true;
+    }
+    
     //
     // Callbacks to be overridden, typically anonymously
     //

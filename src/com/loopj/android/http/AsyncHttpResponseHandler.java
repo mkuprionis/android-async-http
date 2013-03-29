@@ -21,7 +21,6 @@ package com.loopj.android.http;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.util.Log;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -31,7 +30,6 @@ import org.apache.http.util.ByteArrayBuffer;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.ref.WeakReference;
 import android.util.Log;
 
 /**
@@ -83,8 +81,6 @@ public class AsyncHttpResponseHandler {
 
     private Handler handler;
 
-    // avoid leaks by using a non-anonymous handler class
-    // with a weak reference
     private boolean isCanceled;
     
     // Whether we're in development environment
@@ -93,25 +89,31 @@ public class AsyncHttpResponseHandler {
     // Used when debugging for more informative logs
     protected String requestLine;
     
+    // Previous implementation used 
+    // 		WeakReference<AsyncHttpResponseHandler> mResponder;
+    // to avoid leaks. However occasionally we'd lose this
+    // reference and our callbacks are not triggered then.
+    // Of course we cannot allow this. So until we verify 
+    // leaks really occur here and then find a better solution,
+    // we won't be using WeakReference here.
     static class ResponderHandler extends Handler {
-        private final WeakReference<AsyncHttpResponseHandler> mResponder;
+        private final AsyncHttpResponseHandler mResponder;
     	
         private boolean mDebug;
         private String mRequestLine;
         
-        ResponderHandler(AsyncHttpResponseHandler service) {
-            mResponder = new WeakReference<AsyncHttpResponseHandler>(service);
+        ResponderHandler(AsyncHttpResponseHandler handler) {
+            mResponder = handler;
             mDebug = false;
         }
         
         @Override
         public void handleMessage(Message msg)
         {
-        	AsyncHttpResponseHandler service = mResponder.get();
-            if (service != null) {
-            	service.handleMessage(msg);
+            if (mResponder != null) {
+            	mResponder.handleMessage(msg);
             } else {
-            	if(mDebug) Log.d(TAG, String.format("Would handle a message in a handler, we've lost WeakReference; %s", mRequestLine));
+            	if(mDebug) Log.d(TAG, String.format("Would handle a message in a handler, we've it is null; %s", mRequestLine));
             }
         }
         

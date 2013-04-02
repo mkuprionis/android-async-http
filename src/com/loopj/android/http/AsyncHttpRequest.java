@@ -128,13 +128,13 @@ class AsyncHttpRequest implements Runnable {
         if(!isCanceled) {
             HttpResponse response = client.execute(request, context);
             
-            if(debug) Log.d(TAG, String.format("Finished executing %s", request.getRequestLine()));
+            if(debug) Log.v(TAG, String.format("Finished executing %s", request.getRequestLine()));
             
             if(responseHandler != null && !isCanceled) {
-            	if(debug) Log.d(TAG, String.format("About to send response message for %s", request.getRequestLine()));
+            	if(debug) Log.v(TAG, String.format("About to send response message for %s", request.getRequestLine()));
                 responseHandler.sendResponseMessage(response);
             } else {
-            	if(debug) Log.d(TAG, String.format("Not sending response message {handler=%s; isCanceled=%b} for %s", (responseHandler != null ? responseHandler.toString() : "null"), isCanceled, request.getRequestLine()));
+            	if(debug) Log.v(TAG, String.format("Not sending response message {handler=%s; isCanceled=%b} for %s", (responseHandler != null ? responseHandler.toString() : "null"), isCanceled, request.getRequestLine()));
             }
         }
     }

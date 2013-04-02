@@ -126,17 +126,17 @@ public class JsonHttpResponseHandler extends AsyncHttpResponseHandler {
     protected void sendSuccessMessage(int statusCode, byte[] responseBody) {
         try {
             Object jsonResponse = parseResponse(responseBody);
-            if(debug) Log.d(TAG, String.format("Sending success message (HTTP %d, %,d bytes) for %s", statusCode, responseBody.length, requestLine));
+            if(debug) Log.v(TAG, String.format("Sending success message (HTTP %d, %,d bytes) for %s", statusCode, responseBody.length, requestLine));
             sendMessage(obtainMessage(SUCCESS_JSON_MESSAGE, new Object[] { Integer.valueOf(statusCode), jsonResponse }));
         } catch (JSONException e) {
-        	if(debug) Log.d(TAG, String.format("Sending failure message %d caused by %s for %s", statusCode, e.getClass().getSimpleName(), requestLine));
+        	if(debug) Log.v(TAG, String.format("Sending failure message %d caused by %s for %s", statusCode, e.getClass().getSimpleName(), requestLine));
             sendMessage(obtainMessage(FAILURE_MESSAGE, new Object[] {Integer.valueOf(0), responseBody, e}));
         }
     }
 
     @Override
     protected void sendFailureMessage(int statusCode, byte[] responseBody, Throwable error) {
-    	if(debug) Log.d(TAG, String.format("Sending failure message %d caused by %s for %s", statusCode, error.getClass().getSimpleName(), requestLine));
+    	if(debug) Log.v(TAG, String.format("Sending failure message %d caused by %s for %s", statusCode, error.getClass().getSimpleName(), requestLine));
     	
         try {
             if (responseBody != null) {
@@ -172,7 +172,7 @@ public class JsonHttpResponseHandler extends AsyncHttpResponseHandler {
     }
 
     protected void handleSuccessJsonMessage(int statusCode, Object jsonResponse) {
-    	if(debug) Log.d(TAG, String.format("Handling SuccessJsonMessage (HTTP %d)for %s", statusCode, requestLine));
+    	if(debug) Log.v(TAG, String.format("Handling SuccessJsonMessage (HTTP %d)for %s", statusCode, requestLine));
     	
         if(jsonResponse instanceof JSONObject) {
             onSuccess(statusCode, (JSONObject)jsonResponse);
@@ -184,7 +184,7 @@ public class JsonHttpResponseHandler extends AsyncHttpResponseHandler {
     }
 
     protected void handleFailureJsonMessage(int statusCode, Object jsonResponse, Throwable error) {
-    	if(debug) Log.d(TAG, String.format("Handling FailureJsonMessage %d caused by %s for %s", statusCode, error.getClass().getSimpleName(), requestLine));
+    	if(debug) Log.v(TAG, String.format("Handling FailureJsonMessage %d caused by %s for %s", statusCode, error.getClass().getSimpleName(), requestLine));
     	
         if (jsonResponse instanceof JSONObject) {
             onFailure(statusCode, (JSONObject) jsonResponse, error);
@@ -196,7 +196,7 @@ public class JsonHttpResponseHandler extends AsyncHttpResponseHandler {
     }
     
     protected Object parseResponse(byte[] responseBody) throws JSONException {
-    	if(debug) Log.d(TAG, String.format("Parsing response for %s", requestLine));
+    	if(debug) Log.v(TAG, String.format("Parsing response for %s", requestLine));
     	
         Object result = null;
         String responseBodyText = null;

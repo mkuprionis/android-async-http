@@ -114,7 +114,7 @@ public class AsyncHttpResponseHandler {
             if (mResponder != null) {
             	mResponder.handleMessage(msg);
             } else {
-            	if(mDebug) Log.d(TAG, String.format("Would handle a message in a handler, we've it is null; %s", mRequestLine));
+            	if(mDebug) Log.v(TAG, String.format("Would handle a message in a handler, we've it is null; %s", mRequestLine));
             }
         }
         
@@ -229,22 +229,22 @@ public class AsyncHttpResponseHandler {
     //
 
     protected void sendSuccessMessage(int statusCode, byte[] responseBody) {
-    	if(debug) Log.d(TAG, String.format("Sending success message (HTTP %d, %,d bytes) for %s", statusCode, responseBody.length, requestLine));
+    	if(debug) Log.v(TAG, String.format("Sending success message (HTTP %d, %,d bytes) for %s", statusCode, responseBody.length, requestLine));
         sendMessage(obtainMessage(SUCCESS_MESSAGE, new Object[] { Integer.valueOf(statusCode), responseBody }));
     }
 
     protected void sendFailureMessage(int statusCode, byte[] responseBody, Throwable error) {
-    	if(debug) Log.d(TAG, String.format("Sending failure message %d caused by %s for %s", statusCode, error.getClass().getSimpleName(), requestLine));
+    	if(debug) Log.v(TAG, String.format("Sending failure message %d caused by %s for %s", statusCode, error.getClass().getSimpleName(), requestLine));
         sendMessage(obtainMessage(FAILURE_MESSAGE, new Object[] { Integer.valueOf(statusCode), responseBody, error }));
     }
 
     protected void sendStartMessage() {
-    	if(debug) Log.d(TAG, String.format("Sending start message %s", requestLine));
+    	if(debug) Log.v(TAG, String.format("Sending start message %s", requestLine));
         sendMessage(obtainMessage(START_MESSAGE, null));
     }
 
     protected void sendFinishMessage() {
-    	if(debug) Log.d(TAG, String.format("Sending finish message  %s", requestLine));
+    	if(debug) Log.v(TAG, String.format("Sending finish message  %s", requestLine));
         sendMessage(obtainMessage(FINISH_MESSAGE, null));
     }
 
@@ -254,7 +254,7 @@ public class AsyncHttpResponseHandler {
     }
 
     protected void sendRetryMessage() {
-    	if(debug) Log.d(TAG, String.format("Sending retry message  %s", requestLine));
+    	if(debug) Log.v(TAG, String.format("Sending retry message  %s", requestLine));
     	sendMessage(obtainMessage(RETRY_MESSAGE, null));
     }
     
@@ -263,12 +263,12 @@ public class AsyncHttpResponseHandler {
     //
 
     protected void handleSuccessMessage(int statusCode, byte[] responseBody) {
-    	if(debug) Log.d(TAG, String.format("Handling success message (HTTP %d; %,d bytes) for %s", statusCode, responseBody.length, requestLine));
+    	if(debug) Log.v(TAG, String.format("Handling success message (HTTP %d; %,d bytes) for %s", statusCode, responseBody.length, requestLine));
         onSuccess(statusCode, responseBody);
     }
 
     protected void handleFailureMessage(int statusCode, byte[] responseBody, Throwable error) {
-    	if(debug) Log.d(TAG, String.format("Handling failure message (HTTP %d), caused by %s, for %s", statusCode, error.getClass().getSimpleName(), requestLine));
+    	if(debug) Log.v(TAG, String.format("Handling failure message (HTTP %d), caused by %s, for %s", statusCode, error.getClass().getSimpleName(), requestLine));
         onFailure(statusCode, responseBody, error);
     }
 
@@ -277,7 +277,7 @@ public class AsyncHttpResponseHandler {
     }
 
     protected void handleRetryMessage() {
-    	if(debug) Log.d(TAG, String.format("Handling retry message for %s", requestLine));
+    	if(debug) Log.v(TAG, String.format("Handling retry message for %s", requestLine));
     	onRetry();
     }
     
@@ -314,14 +314,14 @@ public class AsyncHttpResponseHandler {
         // do not send messages if request has been cancelled
         if (!Thread.currentThread().isInterrupted() && !isCanceled) {
             if (handler != null) {
-            	if(debug) Log.d(TAG, String.format("Sending message to handler for %s", requestLine));
+            	if(debug) Log.v(TAG, String.format("Sending message to handler for %s", requestLine));
                 handler.sendMessage(msg);
             } else {
-            	if(debug) Log.d(TAG, String.format("Sending message without handler for %s", requestLine));
+            	if(debug) Log.v(TAG, String.format("Sending message without handler for %s", requestLine));
                 handleMessage(msg);
             }
         } else {
-        	if(debug) Log.d(TAG, String.format("Not sending message %s because thread was interrupted or request was canceled (%b) %s", msg.toString(), isCanceled, requestLine));
+        	if(debug) Log.v(TAG, String.format("Not sending message %s because thread was interrupted or request was canceled (%b) %s", msg.toString(), isCanceled, requestLine));
         }
     }
 
@@ -352,14 +352,14 @@ public class AsyncHttpResponseHandler {
             // On the other hand, if content length is known, read it chunk by chunk
             // reporting progress on the way.
             if(contentLength < 0) {
-            	if(debug) Log.d(TAG, String.format("Consuming response - unknown size for %s", requestLine));
+            	if(debug) Log.v(TAG, String.format("Consuming response - unknown size for %s", requestLine));
             	
             	responseBody = EntityUtils.toByteArray(entity);
             } else {
                 InputStream instream = entity.getContent();
                 if (instream != null) {
                 	
-                	if(debug) Log.d(TAG, String.format("Consuming response - size is %,d bytes for %s", contentLength, requestLine));
+                	if(debug) Log.v(TAG, String.format("Consuming response - size is %,d bytes for %s", contentLength, requestLine));
                 	
                     try{
                         ByteArrayBuffer buffer = new ByteArrayBuffer((int) contentLength);
@@ -396,10 +396,10 @@ public class AsyncHttpResponseHandler {
             // http://stackoverflow.com/a/4621737/74174
             entity.consumeContent();
             
-            if(debug) Log.d(TAG, String.format("Consumed response, total %,d bytes for %s", responseBody.length, requestLine));
+            if(debug) Log.v(TAG, String.format("Consumed response, total %,d bytes for %s", responseBody.length, requestLine));
             
         } else {
-        	if(debug) Log.d(TAG, String.format("Consuming response but entity is `null` for %s", requestLine));
+        	if(debug) Log.v(TAG, String.format("Consuming response but entity is `null` for %s", requestLine));
         }
         
         return (responseBody);
@@ -413,7 +413,7 @@ public class AsyncHttpResponseHandler {
             byte[] responseBody = null;
             responseBody = getResponseData(response.getEntity());
             
-            if(debug) Log.d(TAG, String.format("Sending response message of total %,d bytes for %s", responseBody.length, requestLine));
+            if(debug) Log.v(TAG, String.format("Sending response message of total %,d bytes for %s", responseBody.length, requestLine));
             
             if (status.getStatusCode() >= 300) {
                 sendFailureMessage(status.getStatusCode(), responseBody, new HttpResponseException(status.getStatusCode(), status.getReasonPhrase()));
@@ -421,7 +421,7 @@ public class AsyncHttpResponseHandler {
                 sendSuccessMessage(status.getStatusCode(), responseBody);
             }
         } else {
-        	if(debug) Log.d(TAG, String.format("NOT sending response message as thread was interrunpted or request canceled (%b) for %s", isCanceled, requestLine));
+        	if(debug) Log.v(TAG, String.format("NOT sending response message as thread was interrunpted or request canceled (%b) for %s", isCanceled, requestLine));
         }
     }
 }
